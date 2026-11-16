@@ -1,0 +1,49 @@
+name: Ежедневни цени
+
+on:
+  schedule:
+    # Изворът (smartbasket-data, от КЗП) се обновява ~10:15 и ~18:15 UTC. Пускаме след него.
+    - cron: "40 11 * * *"
+    - cron: "40 19 * * *"
+  workflow_dispatch:   # бутон „Run workflow“ за ръчно пускане
+  push:
+    paths: ["build/**"]   # нови рецепти/продукти → веднага нов data.json
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Сваляне на цените от КЗП (обработени)
+        run: git clone --depth 1 --branch data https://github.com/Rumbarski/smartbasket-data /tmp/sb
+
+      - name: Сглобяване на data.json
+        run: |
+          cp docs/data.json /tmp/old.json 2>/dev/null || true
+          KZP_SRC=/tmp/sb/v1 python build/build_data.py && python build/make_site.py
+
+      - name: Проверка
+        run: python build/validate.py docs/data.json /tmp/old.json
+
+      - name: Публикуване
+        run: |
+          git add docs
+          if git diff --cached --quiet; then echo "Няма промяна."; exit 0; fi
+          DAY=$(python -c "import json;print(json.load(open('docs/data.json'))['date'])")
+          git -c user.name="koshnichka-bot" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -qm "Цени за ${DAY}"
+          git push -q
+          echo "Публикувано: ${DAY}"

@@ -1,0 +1,767 @@
+
+const D = window.__D;
+const $ = id => document.getElementById(id);
+const eur = v => v.toFixed(2).replace(".", ",") + " €";
+const DAYS = ["Понеделник","Вторник","Сряда","Четвъртък","Петък","Събота","Неделя"];
+const DSHORT = ["П","В","С","Ч","П","С","Н"];
+const MONTHS = ["яну","фев","мар","апр","май","юни","юли","авг","сеп","окт","ноем","дек"];
+const AISLES = ["Плод и зеленчук","Месо и риба","Млечни","Хляб и тесто","Бакалия"];
+const st = { entries: [], chain: "kaufland", tab: "plan", poolSizes: { breakfast: 99, main: 99 } };
+
+// ---------- icons ----------
+const I = {
+  basket: `<svg viewBox="0 0 32 32" fill="none"><path d="M5 13h22l-2.4 12.2a2 2 0 0 1-2 1.6H9.4a2 2 0 0 1-2-1.6L5 13Z" fill="#FFC94A"/><path d="M10 13l4-7M22 13l-4-7" stroke="#FF5A3C" stroke-width="2.6" stroke-linecap="round"/><path d="M11 17v6M16 17v6M21 17v6" stroke="#0F3440" stroke-width="2" stroke-linecap="round"/></svg>`,
+  refresh: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>`,
+  swap: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-4 4"/><path d="M21 7H8"/><path d="M7 21l-4-4 4-4"/><path d="M3 17h13"/></svg>`,
+  back: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>`,
+  list: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor"/></svg>`,
+  plan: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v8a2 2 0 0 0 2 2v8M11 3v6M7 3v6"/><path d="M17 21V3c-2 1.5-3 4-3 7v4h3"/></svg>`,
+  cmp: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>`,
+  user: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>`,
+  sun: `<svg viewBox="0 0 32 32" fill="none" stroke="#0F3440" stroke-width="2.2" stroke-linecap="round"><circle cx="16" cy="16" r="5.5" fill="#FFC94A"/><path d="M16 3v3M16 26v3M3 16h3M26 16h3M6.8 6.8l2.1 2.1M23.1 23.1l2.1 2.1M6.8 25.2l2.1-2.1M23.1 8.9l2.1-2.1"/></svg>`,
+  plate: `<svg viewBox="0 0 32 32" fill="none" stroke="#0F3440" stroke-width="2.2"><circle cx="16" cy="16" r="11" fill="#fff"/><circle cx="16" cy="16" r="6.5" fill="#FFC94A"/></svg>`,
+  moon: `<svg viewBox="0 0 32 32" fill="none" stroke="#0F3440" stroke-width="2.2" stroke-linejoin="round"><path d="M24 20.5A10 10 0 0 1 11.5 8a10 10 0 1 0 12.5 12.5Z" fill="#FFC94A"/></svg>`,
+  oven: `<svg viewBox="0 0 32 32" fill="none" stroke="#0F3440" stroke-width="2.2" stroke-linejoin="round"><rect x="5" y="5" width="22" height="22" rx="3" fill="#fff"/><rect x="9" y="13" width="14" height="10" rx="1.5" fill="#FFC94A"/><path d="M9 9h2M14 9h2M21 9h2" stroke-linecap="round"/></svg>`,
+  stove: `<svg viewBox="0 0 32 32" fill="none" stroke="#0F3440" stroke-width="2.2"><rect x="4" y="11" width="24" height="12" rx="3" fill="#fff"/><circle cx="11" cy="17" r="3" fill="#FF5A3C"/><circle cx="21" cy="17" r="3" fill="#FF5A3C"/></svg>`,
+  clock: `<svg viewBox="0 0 32 32" fill="none" stroke="#0F3440" stroke-width="2.2" stroke-linecap="round"><circle cx="16" cy="16" r="11" fill="#fff"/><path d="M16 10v6l4 3"/></svg>`,
+};
+
+// ---------- dish illustrations (generated, deterministic per recipe) ----------
+const CUIS_BG = { bg: "#FBE4D8", it: "#E4F0DE", mx: "#FFEFC2", us: "#DFEAF7", as: "#F6E0EA", gr: "#DCEFF2" };
+const ING_COL = { salami:"#9E3B33", biscuits:"#E2B36B", chocolate:"#5B3A29", oranges:"#F59A23", tomato:"#E5483A", tomcan:"#D93A2B", carrot:"#F28C28", potatoes:"#F1C55B", rice:"#FBF7EC", spaghetti:"#F0CF73", macaroni:"#F0CF73", beans:"#8C4A2C", beanscan:"#A65B33", lentils:"#C2733C", chwhole:"#E3AE72", chfillet:"#EBC08E", chlegs:"#D99A5B", porkshoulder:"#C57A5C", porkneck:"#B96A4E", porkstew:"#C57A5C", porkleg:"#D4927A", mince:"#8E4B3A", sausages:"#B5533C", ham:"#E89A9A", mackerel:"#7D97A8", trout:"#C9A08E", eggs:"#FFD84A", sirene:"#FFFFFF", kashkaval:"#F5C842", butter:"#F7E08A", milk:"#FFFFFF", yogurt:"#FFFFFF", curd:"#FFFDF5", cabbage:"#B3D48A", cucumber:"#6FAF5A", mushrooms:"#B9A089", peascan:"#7DBA4A", onion:"#E9D3EA", garlic:"#F3EEE2", lemon:"#F7DC4B", banana:"#F5D547", apple:"#D9473B", bread:"#D9A15B", olives:"#3B3530", lyutenitsa:"#C8402B", kori:"#F2DDA4", flour:"#F6F1E6", oil:"#F2D36B", oliveoil:"#B9B24A", sugar:"#FFFFFF" };
+const VESSEL = {
+  bowl: ["tarator","kremsupa","domatsupa","toptcheta","fideasupa","gabsupa","ribachorba","pileshkafide","ramen","alumatar","mlyakokakao","yogparfe","bob","leshta","pileshkasupa","minestrone","dal","chili","kartofi","chpeas","popara","mlyakooriz","yogfruit","izvaraqbalka","bobnadenitsa","svinskozele","lovdjiiski","curry"],
+  pan: ["kyuftetasos","pileyahnia","svinskogabi","pilezele","hashbrown","kitzele","limonpile","fritata","orizmex","omletnadenitsa","omlet","omlethunka","mishmash","shakshuka","tortilla_es","barkani","ochi","omletzelen","kavarma","filegabi","friedrice","noodles","sweetsour","teriyaki"],
+  tray: ["svinskofurna","gabipalneni","patatnik","zelnik","pilefurna","vratgabi","pastarvafurna","rulostefani","enchiladas","limonbutcheta","tandoori","banichki","bananahlqb","biskvitenatorta","parlenka","musaka","musakaoriz","makaroni","banitsa","pileoriz","guvech","butcheta","plakia","vegguvech","pastitsio","stuffedpot","krenvirshi","skumriya","nuggets","tutmanik","banitsaizvara","parmigiana"],
+  pizza: ["pizzaham","pizzaveg"],
+  wrap: ["tacospile","souvlakiporc","tacos","burrito","quesadilla","fajitas","gyros"],
+  burger: ["pulledpork","lukankasandvich","portokalfilii","burger","chburger","sandvichi","printsesi","printsesikash","lyutfiliiki"],
+  stack: ["palachinkishokolad","tiganitsi","palachinkiizvara","palachinki","palachinkibanan","pancakes","mekitsi","pyrjeni","frenchtoast"],
+};
+const vesselOf = id => Object.keys(VESSEL).find(k => VESSEL[k].includes(id)) || "plate";
+function rng(seed) { let h = 2166136261; for (const c of seed) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 10000) / 10000; }; }
+function foodBits(r, rand, cx, cy, rx, ry, n) {
+  const skip = new Set(["oil","oliveoil","flour","sugar","milk","yogurt","garlic","butter","tomcan","kori","curd"]);
+  const ings = Object.entries(r.ing).filter(([k]) => !skip.has(k)).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k]) => k);
+  let s = "";
+  for (let i = 0; i < n; i++) {
+    const k = ings[i % ings.length]; if (!k) break;
+    const a = rand() * Math.PI * 2, d = Math.sqrt(rand()) * 0.78;
+    const x = cx + Math.cos(a) * rx * d, y = cy + Math.sin(a) * ry * d, rot = Math.round(rand() * 180), c = ING_COL[k] || "#C9A27A";
+    if (["rice","lentils","peascan","beans","beanscan","olives"].includes(k)) {
+      for (let j = 0; j < 5; j++) s += `<ellipse cx="${(x + (rand() - .5) * 18).toFixed(1)}" cy="${(y + (rand() - .5) * 12).toFixed(1)}" rx="${k === "rice" ? 3.2 : 3.6}" ry="${k === "rice" ? 1.7 : 3}" fill="${c}" stroke="rgba(0,0,0,.12)" stroke-width=".6" transform="rotate(${rot} ${x.toFixed(1)} ${y.toFixed(1)})"/>`;
+    } else if (["spaghetti","macaroni","cabbage"].includes(k)) {
+      s += `<path d="M${(x - 14).toFixed(1)} ${y.toFixed(1)} q7 -9 14 0 t14 0" fill="none" stroke="${c}" stroke-width="${k === "cabbage" ? 3.4 : 4.2}" stroke-linecap="round" transform="rotate(${rot} ${x.toFixed(1)} ${y.toFixed(1)})"/>`;
+    } else if (k === "eggs") {
+      s += `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="13" ry="11" fill="#fff" stroke="rgba(0,0,0,.08)"/><circle cx="${(x + 1).toFixed(1)}" cy="${(y - 1).toFixed(1)}" r="5.5" fill="#FFC21A"/>`;
+    } else if (["tomato","carrot","cucumber","lemon","banana","apple","sausages"].includes(k)) {
+      s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${k === "carrot" ? 5 : 7.5}" fill="${c}" stroke="rgba(0,0,0,.12)" stroke-width=".8"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${k === "carrot" ? 2 : 3.5}" fill="rgba(255,255,255,.35)"/>`;
+    } else if (["mackerel","trout"].includes(k)) {
+      s += `<g transform="rotate(${rot % 40 - 20} ${x.toFixed(1)} ${y.toFixed(1)})"><ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="24" ry="9" fill="${c}"/><path d="M${(x + 22).toFixed(1)} ${y.toFixed(1)} l10 -8 v16 z" fill="${c}"/><circle cx="${(x - 15).toFixed(1)}" cy="${(y - 2).toFixed(1)}" r="1.8" fill="#1d2b33"/></g>`;
+    } else if (["sirene","kashkaval","potatoes","curd"].includes(k)) {
+      s += `<rect x="${(x - 6).toFixed(1)}" y="${(y - 6).toFixed(1)}" width="12" height="12" rx="3" fill="${c}" stroke="rgba(0,0,0,.1)" stroke-width=".8" transform="rotate(${rot} ${x.toFixed(1)} ${y.toFixed(1)})"/>`;
+    } else if (k === "mushrooms") {
+      s += `<path d="M${(x - 8).toFixed(1)} ${y.toFixed(1)} a8 7 0 0 1 16 0 z" fill="${c}"/><rect x="${(x - 2.5).toFixed(1)}" y="${y.toFixed(1)}" width="5" height="6" rx="1.5" fill="#EFE3D3"/>`;
+    } else if (k === "onion") {
+      s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6" fill="none" stroke="${c}" stroke-width="2.5"/>`;
+    } else if (k === "bread") {
+      s += `<rect x="${(x - 11).toFixed(1)}" y="${(y - 9).toFixed(1)}" width="22" height="18" rx="7" fill="${c}"/><rect x="${(x - 8).toFixed(1)}" y="${(y - 6).toFixed(1)}" width="16" height="12" rx="5" fill="#F4DDB5"/>`;
+    } else {
+      s += `<path d="M${(x - 9).toFixed(1)} ${(y - 4).toFixed(1)} q6 -8 14 -2 q6 6 0 11 q-8 5 -14 -1 q-4 -4 0 -8z" fill="${c}" stroke="rgba(0,0,0,.12)" stroke-width=".8" transform="rotate(${rot} ${x.toFixed(1)} ${y.toFixed(1)})"/>`;
+    }
+  }
+  return s;
+}
+function dishSvg(r, wide) {
+  const rand = rng(r.id), v = vesselOf(r.id), bg = CUIS_BG[r.cuisine] || "#EEE";
+  const W = wide ? 400 : 200, H = wide ? 300 : 200, cx = W / 2, cy = H / 2 + (wide ? 14 : 4), S = wide ? 1.25 : 1;
+  const sauce = r.ing.tomcan || r.ing.lyutenitsa ? "#D9452F" : (r.ing.yogurt || r.ing.milk || r.ing.curd) ? "#F7EBD0" : v === "bowl" ? "#E9B95A" : null;
+  let g = "";
+  const pattern = Array.from({ length: wide ? 14 : 7 }, () => `<circle cx="${(rand() * W).toFixed(0)}" cy="${(rand() * H).toFixed(0)}" r="${(2 + rand() * 3).toFixed(1)}" fill="rgba(255,255,255,.55)"/>`).join("");
+  if (v === "bowl") {
+    g = `<ellipse cx="${cx}" cy="${cy + 52 * S}" rx="${70 * S}" ry="${10 * S}" fill="rgba(15,52,64,.12)"/>
+      <path d="M${cx - 76 * S} ${cy - 6 * S} a${76 * S} ${66 * S} 0 0 0 ${152 * S} 0 z" fill="#FFFFFF"/><path d="M${cx - 76 * S} ${cy - 6 * S} a${76 * S} ${66 * S} 0 0 0 ${152 * S} 0" fill="none" stroke="#0F3440" stroke-width="3"/>
+      <ellipse cx="${cx}" cy="${cy - 6 * S}" rx="${76 * S}" ry="${22 * S}" fill="#fff" stroke="#0F3440" stroke-width="3"/>
+      <ellipse cx="${cx}" cy="${cy - 6 * S}" rx="${66 * S}" ry="${16 * S}" fill="${sauce || "#E9B95A"}"/>` + foodBits(r, rand, cx, cy - 6 * S, 60 * S, 12 * S, 9);
+  } else if (v === "pan") {
+    g = `<rect x="${cx + 60 * S}" y="${cy - 8 * S}" width="${70 * S}" height="${14 * S}" rx="${7 * S}" fill="#0F3440" transform="rotate(-12 ${cx} ${cy})"/>
+      <ellipse cx="${cx}" cy="${cy + 6 * S}" rx="${78 * S}" ry="${60 * S}" fill="#2B3A40"/><ellipse cx="${cx}" cy="${cy}" rx="${70 * S}" ry="${54 * S}" fill="${sauce || "#F3D27A"}"/>` + foodBits(r, rand, cx, cy, 64 * S, 48 * S, 12);
+  } else if (v === "tray") {
+    g = `<rect x="${cx - 86 * S}" y="${cy - 58 * S}" width="${172 * S}" height="${122 * S}" rx="${16 * S}" fill="#0F3440"/><rect x="${cx - 78 * S}" y="${cy - 50 * S}" width="${156 * S}" height="${106 * S}" rx="${10 * S}" fill="${sauce === "#D9452F" ? "#E06A3E" : "#F0C066"}"/>
+      <rect x="${cx - 78 * S}" y="${cy - 50 * S}" width="${156 * S}" height="${106 * S}" rx="${10 * S}" fill="url(#crust-${r.id})" opacity=".5"/>` + foodBits(r, rand, cx, cy + 3 * S, 70 * S, 46 * S, 13);
+  } else if (v === "pizza") {
+    g = `<circle cx="${cx}" cy="${cy}" r="${78 * S}" fill="#D99A4E"/><circle cx="${cx}" cy="${cy}" r="${68 * S}" fill="#D9452F"/><circle cx="${cx}" cy="${cy}" r="${66 * S}" fill="#F5C842" opacity=".55"/>` + foodBits(r, rand, cx, cy, 60 * S, 60 * S, 14) +
+      [0, 60, 120].map(a => `<line x1="${cx}" y1="${cy - 78 * S}" x2="${cx}" y2="${cy + 78 * S}" stroke="rgba(0,0,0,.18)" stroke-width="2" transform="rotate(${a} ${cx} ${cy})"/>`).join("");
+  } else if (v === "wrap") {
+    g = `<ellipse cx="${cx}" cy="${cy + 50 * S}" rx="${84 * S}" ry="${10 * S}" fill="rgba(15,52,64,.12)"/><ellipse cx="${cx}" cy="${cy}" rx="${86 * S}" ry="${60 * S}" fill="#fff" stroke="#0F3440" stroke-width="3"/>
+      <path d="M${cx - 66 * S} ${cy + 10 * S} q${66 * S} ${-70 * S} ${132 * S} 0 z" fill="#F2D9A0" stroke="#C99E52" stroke-width="2"/>` + foodBits(r, rand, cx, cy - 4 * S, 50 * S, 14 * S, 10) +
+      `<path d="M${cx - 70 * S} ${cy + 12 * S} q${70 * S} ${30 * S} ${140 * S} 0" fill="#F2D9A0" stroke="#C99E52" stroke-width="2"/>`;
+  } else if (v === "burger") {
+    g = `<ellipse cx="${cx}" cy="${cy + 50 * S}" rx="${84 * S}" ry="${10 * S}" fill="rgba(15,52,64,.12)"/><ellipse cx="${cx}" cy="${cy + 8 * S}" rx="${86 * S}" ry="${50 * S}" fill="#fff" stroke="#0F3440" stroke-width="3"/>
+      <rect x="${cx - 52 * S}" y="${cy + 2 * S}" width="${104 * S}" height="${22 * S}" rx="${10 * S}" fill="#D9A15B"/><rect x="${cx - 56 * S}" y="${cy - 8 * S}" width="${112 * S}" height="${12 * S}" rx="${6 * S}" fill="${ING_COL[Object.keys(r.ing)[0]] || "#8E4B3A"}"/>
+      <rect x="${cx - 54 * S}" y="${cy - 14 * S}" width="${108 * S}" height="${8 * S}" rx="${4 * S}" fill="#6FAF5A"/><path d="M${cx - 52 * S} ${cy - 14 * S} a${52 * S} ${34 * S} 0 0 1 ${104 * S} 0 z" fill="#E7AE5E"/>` +
+      Array.from({ length: 6 }, () => `<ellipse cx="${(cx + (rand() - .5) * 70 * S).toFixed(1)}" cy="${(cy - 28 * S + (rand() - .5) * 12 * S).toFixed(1)}" rx="2.4" ry="1.4" fill="#FFF6DA"/>`).join("");
+  } else if (v === "stack") {
+    g = `<ellipse cx="${cx}" cy="${cy + 50 * S}" rx="${84 * S}" ry="${10 * S}" fill="rgba(15,52,64,.12)"/><ellipse cx="${cx}" cy="${cy + 14 * S}" rx="${86 * S}" ry="${46 * S}" fill="#fff" stroke="#0F3440" stroke-width="3"/>` +
+      [0, 1, 2, 3].map(j => `<ellipse cx="${cx}" cy="${cy + (14 - j * 9) * S}" rx="${62 * S}" ry="${24 * S}" fill="#E9B562" stroke="#C88A3C" stroke-width="2"/>`).join("") + foodBits(r, rand, cx, cy - 16 * S, 40 * S, 10 * S, 6);
+  } else {
+    g = `<ellipse cx="${cx}" cy="${cy + 54 * S}" rx="${84 * S}" ry="${10 * S}" fill="rgba(15,52,64,.12)"/><ellipse cx="${cx}" cy="${cy}" rx="${88 * S}" ry="${64 * S}" fill="#fff" stroke="#0F3440" stroke-width="3"/><ellipse cx="${cx}" cy="${cy}" rx="${66 * S}" ry="${46 * S}" fill="${sauce || "#F6EFE0"}"/>` + foodBits(r, rand, cx, cy, 62 * S, 42 * S, 12);
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${r.name}" preserveAspectRatio="xMidYMid slice"><defs><pattern id="crust-${r.id}" width="14" height="14" patternUnits="userSpaceOnUse"><circle cx="4" cy="4" r="2.5" fill="#B5652B"/></pattern></defs><rect width="${W}" height="${H}" fill="${bg}"/>${pattern}${g}</svg>`;
+}
+
+// real photos, when they exist, replace the generated illustration (files served next to the page as photos/<id>.jpg)
+const PHOTOS = new Set(D.photos || []);
+function dishImg(r, wide) {
+  return PHOTOS.has(r.id) ? `<img src="photos/${r.id}.jpg" alt="${r.name}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy">` : dishSvg(r, wide);
+}
+
+// ---------- pricing ----------
+// Prices: the chain's national median, or (when a city is chosen) the median of that chain's stores in the city.
+function prod(chain, ing) {
+  const a = D.chains[chain].items[ing];
+  if (!a) return null;
+  const city = prof && prof.city && D.cities[prof.city];
+  if (city) {
+    const cc = city.c[chain];
+    if (!cc) return null;
+    const x = cc.i[ing];
+    if (!x) return null;
+    const c = a[x[0]];
+    return { ...c, p: x[1], per: c.kg ? x[1] : x[1] / c.q, pr: !!x[2] };
+  }
+  return a[0];
+}
+function chainsHere() { const city = prof.city && D.cities[prof.city]; return Object.keys(D.chains).filter(id => !city || city.c[id]); }
+function unitQty(ing, q) { const u = D.ing[ing].unit; return u === "pcs" ? q : q / 1000; }
+function people() { return Math.max(1, prof.people || 2); }
+function servFactor() { return people() / 4; }
+function recipeCost(r, chain, f) {
+  let cost = 0, miss = 0, promo = 0;
+  for (const [ing, q] of Object.entries(r.ing)) {
+    const p = prod(chain, ing);
+    if (!p) { miss++; continue; }
+    const c = unitQty(ing, q) * f * p.per; cost += c; if (p.pr) promo += c;
+  }
+  return { cost, miss, promoShare: cost ? promo / cost : 0 };
+}
+function recipeNut(r) {
+  let k = 0, pr = 0, c = 0, fa = 0;
+  for (const [ing, q] of Object.entries(r.ing)) {
+    const n = D.ing[ing].nut, u = D.ing[ing].unit, m = u === "pcs" ? q : q / 100;
+    k += n[0] * m; pr += n[1] * m; c += n[2] * m; fa += n[3] * m;
+  }
+  return { kcal: Math.round(k / 4), prot: Math.round(pr / 4), carb: Math.round(c / 4), fat: Math.round(fa / 4) };
+}
+function shoppingList(plan, chain, f) {
+  const need = {};
+  for (const r of plan) for (const [ing, q] of Object.entries(r.ing)) need[ing] = (need[ing] || 0) + unitQty(ing, q) * f;
+  const lines = [], missing = [];
+  let total = 0;
+  for (const [ing, n] of Object.entries(need)) {
+    const p = prod(chain, ing), meta = D.ing[ing];
+    if (!p) { missing.push(meta.bg); continue; }
+    let cost, label;
+    if (p.kg) {
+      const buy = Math.ceil(n * 10 - 1e-9) / 10; cost = buy * p.per;
+      label = `${buy.toFixed(1).replace(".", ",")} ${meta.unit === "l" ? "л" : "кг"} на тегло`;
+    } else {
+      const k = Math.max(1, Math.ceil(n / p.q - 1e-9)); cost = k * p.p;
+      label = `${k} × ${fmtSize(p.q, meta.unit)}${p.a ? " (размер по оценка)" : ""}`;
+    }
+    total += cost;
+    lines.push({ ing, meta, p, need: n, label, cost });
+  }
+  return { lines, missing, total };
+}
+function fmtSize(q, u) {
+  if (u === "pcs") return `${q} бр.`;
+  if (q < 1) return `${Math.round(q * 1000)} ${u === "l" ? "мл" : "г"}`;
+  return `${String(q).replace(".", ",")} ${u === "l" ? "л" : "кг"}`;
+}
+function fmtQty(ing, q) {
+  const u = D.ing[ing].unit;
+  if (u === "pcs") return `${Math.ceil(q)} бр.`;
+  return q >= 1000 ? `${(q / 1000).toFixed(1).replace(".", ",")} ${u === "l" ? "л" : "кг"}` : `${q >= 50 ? Math.round(q / 10) * 10 : Math.round(q)} ${u === "l" ? "мл" : "г"}`;
+}
+
+// ---------- shopping trips ----------
+// Split the period into trips; buy only what the next days need, and carry leftovers of earlier packs forward.
+const SHOP = [["weekly", "Веднъж", "Веднъж седмично", "един голям списък за всичко"], ["twice", "2 пъти", "Два пъти седмично", "отделен списък за първите и за вторите дни"], ["daily", "Всеки ден", "Всеки ден или през ден", "списък за всеки ден, купуваш свежо"]];
+function tripDays() {
+  const n = daysN(), all = Array.from({ length: n }, (_, i) => i);
+  if (prof.shop === "daily") return all.map(d => [d]);
+  if (prof.shop === "twice" && n > 1) { const h = Math.ceil(n / 2); return [all.slice(0, h), all.slice(h)]; }
+  return [all];
+}
+// Days a fresh product keeps in the fridge after buying (rough household guide), and whether it freezes well.
+const SHELF = { mince: 1, mackerel: 1, trout: 1, chfillet: 2, chlegs: 2, chwhole: 2, porkshoulder: 3, porkneck: 3, porkstew: 3, porkleg: 3, mushrooms: 3, bread: 3, ham: 4, curd: 4, banana: 4, sausages: 5, milk: 5, tomato: 5, cucumber: 5, yogurt: 7, kori: 7, sirene: 10, kashkaval: 14, cabbage: 14, lemon: 14, apple: 14, oranges: 14, salami: 20, carrot: 21, eggs: 21, butter: 30, potatoes: 30, onion: 30, garlic: 30 };
+const FREEZE = new Set(["mince", "mackerel", "trout", "chfillet", "chlegs", "chwhole", "porkshoulder", "porkneck", "porkstew", "porkleg", "bread", "ham", "sausages", "kori", "butter"]);
+const shelf = ing => SHELF[ing] || 365;
+const DAYS_ACC = ["понеделник", "вторник", "сряда", "четвъртък", "петък", "събота", "неделя"];
+// Simulate buying per trip (FIFO lots) and cooking day by day: what to buy, what is left over, what is old by the time you cook it.
+function shoppingTrips(entries, chain, f) {
+  const lots = {}, trips = [], info = entries.map(() => ({ left: [], warn: [] }));
+  const order = entries.map((e, i) => i).sort((a, b) => entries[a].day - entries[b].day || a - b);
+  for (const days of tripDays()) {
+    const need = {}, tday = days[0];
+    for (const e of entries) if (days.includes(e.day)) for (const [ing, q] of Object.entries(e.r.ing)) need[ing] = (need[ing] || 0) + unitQty(ing, q) * f;
+    const lines = [], have = [], missing = []; let total = 0;
+    for (const [ing, n0] of Object.entries(need)) {
+      const p = prod(chain, ing), meta = D.ing[ing];
+      if (!p) { missing.push(meta.bg); continue; }
+      const stock = (lots[ing] || []).reduce((a, l) => a + l.left, 0), fromStock = Math.min(stock, n0), n = n0 - fromStock;
+      if (fromStock > 1e-9) have.push({ ing, meta, amt: fmtQty(ing, meta.unit === "pcs" ? fromStock : fromStock * 1000) });
+      if (n <= 1e-9) continue;
+      let cost, label, bought;
+      if (p.kg) { bought = Math.ceil(n * 10 - 1e-9) / 10; cost = bought * p.per; label = `${bought.toFixed(1).replace(".", ",")} ${meta.unit === "l" ? "л" : "кг"} на тегло`; }
+      else { const k = Math.max(1, Math.ceil(n / p.q - 1e-9)); bought = k * p.q; cost = k * p.p; label = `${k} × ${fmtSize(p.q, meta.unit)}${p.a ? " (размер по оценка)" : ""}`; }
+      const line = { ing, meta, p, label, cost, freezeDays: [] };
+      (lots[ing] = lots[ing] || []).push({ day: tday, left: bought, opened: false, line });
+      total += cost; lines.push(line);
+    }
+    // cook the days of this trip, oldest pack first
+    for (const i of order) {
+      const e = entries[i];
+      if (!days.includes(e.day)) continue;
+      for (const [ing, q] of Object.entries(e.r.ing)) {
+        let n = unitQty(ing, q) * f;
+        for (const l of (lots[ing] || [])) {
+          if (n <= 1e-9) break;
+          if (l.left <= 1e-9) continue;
+          const take = Math.min(l.left, n);
+          if (l.opened && !info[i].left.includes(ing)) info[i].left.push(ing);
+          const age = e.day - l.day;
+          if (age > shelf(ing) && !info[i].warn.some(w => w.ing === ing)) {
+            info[i].warn.push({ ing, age, bought: l.day, freeze: FREEZE.has(ing) });
+            if (FREEZE.has(ing) && l.line && !l.line.freezeDays.includes(e.day)) l.line.freezeDays.push(e.day);
+          }
+          l.left -= take; l.opened = true; n -= take;
+        }
+      }
+    }
+    trips.push({ days, lines, have, missing, total });
+  }
+  // what is left at the end; fresh things here are likely waste
+  const waste = [];
+  for (const [ing, ls] of Object.entries(lots)) {
+    const left = ls.reduce((a, l) => a + l.left, 0), p = prod(chain, ing);
+    if (left > 1e-6 && shelf(ing) <= 14 && p) {
+      const val = left * p.per;
+      if (val >= 0.15) waste.push({ ing, amt: fmtQty(ing, D.ing[ing].unit === "pcs" ? left : left * 1000), val });
+    }
+  }
+  return { trips, info, waste: waste.sort((a, b) => b.val - a.val) };
+}
+
+// ---------- profile ----------
+const DEFAULT_PROFILE = { people: 2, priorities: ["cheap"], cuisines: [], diet: "all", dislikes: [], minutes: 999, oven: true, chain: "auto", budget: 25, nights: 5, meals: ["dinner"], shop: "weekly", city: "" };
+function loadProfile() { try { const p = JSON.parse(localStorage.getItem("koshnichka-profile")); return p && p.v === 1 ? p.data : null; } catch (e) { return null; } }
+function saveProfile() { try { localStorage.setItem("koshnichka-profile", JSON.stringify({ v: 1, data: prof })); } catch (e) {} }
+let prof = { ...DEFAULT_PROFILE, ...(loadProfile() || {}) };
+const SLOTS = [["breakfast", "Закуска"], ["lunch", "Обяд"], ["dinner", "Вечеря"]];
+prof.meals = SLOTS.map(s => s[0]).filter(m => prof.meals.includes(m));
+const slotName = id => SLOTS.find(x => x[0] === id)[1];
+const DISLIKES = [
+  { id: "mushrooms", label: "Гъби", ings: ["mushrooms"] }, { id: "fish", label: "Риба", tag: "fish" },
+  { id: "pork", label: "Свинско", tag: "pork" }, { id: "chicken", label: "Пилешко", tag: "chicken" },
+  { id: "mince", label: "Кайма", ings: ["mince"] }, { id: "sausages", label: "Наденици", ings: ["sausages"] },
+  { id: "legumes", label: "Боб и леща", ings: ["beans", "lentils", "beanscan"] }, { id: "cabbage", label: "Зеле", ings: ["cabbage"] },
+  { id: "eggs", label: "Яйца", ings: ["eggs"] }, { id: "dairy", label: "Млечни", ings: ["milk", "yogurt", "sirene", "kashkaval", "butter", "curd"] },
+  { id: "onion", label: "Лук", ings: ["onion"], soft: true }, { id: "garlic", label: "Чесън", ings: ["garlic"], soft: true },
+];
+const PRIORITIES = [
+  { id: "cheap", label: "Да е евтино", hint: "по-евтини ястия и повече промоции" },
+  { id: "healthy", label: "Да е по-леко", hint: "по-малко калории на порция" },
+  { id: "quick", label: "Да е бързо", hint: "повече ястия до 35 минути" },
+  { id: "protein", label: "Повече протеин", hint: "ястия с повече белтъчини" },
+  { id: "variety", label: "Разнообразие", hint: "различни меса и кухни през седмицата" },
+];
+const CUISINES = [["bg", "Българска"], ["it", "Италианска"], ["mx", "Мексиканска"], ["us", "Американска"], ["as", "Азиатска"], ["gr", "Гръцка"]];
+const cuisineName = id => (CUISINES.find(c => c[0] === id) || [, ""])[1];
+const DIETS = [["all", "Ям всичко", "месо, риба, всичко"], ["nopork", "Без свинско", "пиле, риба и вегетариански"], ["pesc", "Без месо, но с риба", "риба и вегетариански"], ["veg", "Вегетарианско", "без месо и риба"]];
+const has = p => prof.priorities.includes(p);
+
+// ---------- planning ----------
+function eligible() {
+  const dis = DISLIKES.filter(d => prof.dislikes.includes(d.id));
+  const soft = new Set(dis.filter(d => d.soft).flatMap(d => d.ings));
+  const hard = new Set(dis.filter(d => !d.soft && d.ings).flatMap(d => d.ings));
+  const badTags = dis.filter(d => d.tag).map(d => d.tag);
+  return D.recipes.filter(r => {
+    const t = r.tags;
+    if (!prof.oven && t.includes("oven")) return false;
+    if (r.min > prof.minutes) return false;
+    if (prof.diet === "veg" && !t.includes("veg")) return false;
+    if (prof.diet === "pesc" && !(t.includes("veg") || t.includes("fish"))) return false;
+    if (prof.diet === "nopork" && t.includes("pork")) return false;
+    if (badTags.some(b => t.includes(b))) return false;
+    if (Object.keys(r.ing).some(i => hard.has(i))) return false;
+    return true;
+  }).map(r => {
+    if (![...soft].some(i => r.ing[i])) return r;
+    const ing = {}; for (const [k, q] of Object.entries(r.ing)) if (!soft.has(k)) ing[k] = q;
+    return { ...r, ing, without: [...soft].filter(i => r.ing[i]).map(i => D.ing[i].bg.toLowerCase()) };
+  });
+}
+function fit(r) {
+  const n = recipeNut(r); let m = 1;
+  if (has("healthy")) m *= Math.pow(600 / Math.max(n.kcal, 300), 1.5);
+  if (has("quick")) m *= r.min <= 35 ? 2.5 : r.min <= 60 ? 1 : 0.4;
+  if (has("protein")) m *= Math.pow(Math.max(n.prot, 8) / 25, 1.5);
+  if (prof.cuisines.length) m *= prof.cuisines.includes(r.cuisine) ? 2.5 : 0.5;
+  return m;
+}
+// cost of cooking r given what is already open in the kitchen (only new packs cost money)
+function marginal(r, chain, f, pantry, day) {
+  let cost = 0, miss = 0, promo = 0, reuse = 0;
+  for (const [ing, q] of Object.entries(r.ing)) {
+    const p = prod(chain, ing); if (!p) { miss++; continue; }
+    const need = unitQty(ing, q) * f, pt = pantry && pantry[ing], have = pt ? pt.left : 0, extra = need - Math.min(have, need);
+    if (pt && have > 1e-9 && shelf(ing) <= 14 && day - pt.day <= shelf(ing)) reuse += Math.min(1, have / need);
+    if (extra > 1e-9) { const c = p.kg ? extra * p.per : Math.ceil(extra / p.q - 1e-9) * p.p; cost += c; if (p.pr) promo += c; }
+  }
+  return { cost, miss, reuse, promoShare: cost ? promo / cost : 0 };
+}
+function useUp(r, chain, f, pantry, day) {
+  for (const [ing, q] of Object.entries(r.ing)) {
+    const p = prod(chain, ing); if (!p) continue;
+    const need = unitQty(ing, q) * f, pt = pantry[ing] = pantry[ing] || { left: 0, day };
+    const fromHave = Math.min(pt.left, need), extra = need - fromHave;
+    pt.left -= fromHave;
+    if (extra > 1e-9) { const bought = p.kg ? Math.ceil(extra * 10 - 1e-9) / 10 : Math.ceil(extra / p.q - 1e-9) * p.q; pt.left += bought - extra; pt.day = day; }
+  }
+}
+function weight(r, chain, f, pantry, day) {
+  const c = pantry ? marginal(r, chain, f, pantry, day) : { ...recipeCost(r, chain, f), reuse: 0 };
+  let s = c.cost + 25 * c.miss;
+  if (has("cheap")) s *= 1 - 0.35 * c.promoShare;
+  return fit(r) * (1 + 1.2 * c.reuse) / Math.pow(s + 0.5, has("cheap") ? 2 : 0.7);
+}
+function weightedPick(pool, chain, f, exclude, pantry, day) {
+  const cand = pool.filter(r => !exclude.has(r.id));
+  if (!cand.length) return null;
+  const w = cand.map(r => weight(r, chain, f, pantry, day));
+  let x = Math.random() * w.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < cand.length; i++) { x -= w[i]; if (x <= 0) return cand[i]; }
+  return cand[cand.length - 1];
+}
+const poolKind = slot => (slot === "breakfast" ? "breakfast" : "main");
+const daysN = () => Math.min(7, Math.max(1, prof.nights || 5));
+function slotList() { const out = []; for (let d = 0; d < daysN(); d++) for (const m of prof.meals) out.push({ day: d, slot: m }); return out; }
+function fillSlots(slots, pools, chain, f) {
+  const used = { breakfast: new Set(), main: new Set() }, plan = [], pantry = {};
+  slots.forEach(s => {
+    const k = poolKind(s.slot), pool = pools[k];
+    if (!pool.length) { plan.push(null); return; }
+    const near = new Set(plan.filter((r, j) => r && slots[j].day >= s.day - 1).map(r => r.id));
+    if (pool.every(r => used[k].has(r.id) || near.has(r.id))) used[k] = new Set();
+    const r = weightedPick(pool, chain, f, new Set([...used[k], ...near]), pantry, s.day) || weightedPick(pool, chain, f, new Set(plan.filter((r, j) => r && slots[j].day === s.day).map(r => r.id)), pantry, s.day) || pool[0];
+    plan.push(r); used[k].add(r.id); useUp(r, chain, f, pantry, s.day);
+  });
+  return plan;
+}
+function mainProtein(r) { return r.tags.find(t => ["pork", "chicken", "fish", "veg"].includes(t)) || "x"; }
+function planFor(chain) {
+  const f = servFactor(), budget = prof.budget, slots = slotList(), all = eligible(), pools = {};
+  for (const k of ["breakfast", "main"]) {
+    const p = all.filter(r => r.meal === k), full = p.filter(r => !recipeCost(r, chain, f).miss);
+    const need = slots.filter(s => poolKind(s.slot) === k).length;
+    pools[k] = full.length >= Math.min(need, 7) ? full : p;
+  }
+  let best = null;
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const plan = fillSlots(slots, pools, chain, f), real = plan.filter(Boolean);
+    const t = shoppingList(real, chain, f).total, pen = t > budget ? (t - budget) * 3 : 0;
+    const wasted = shoppingTrips(plan.map((r, i) => r && { ...slots[i], r }).filter(Boolean), chain, f).waste.reduce((a, w) => a + w.val, 0);
+    const mains = real.filter(r => r.meal === "main"), prot = mains.map(mainProtein);
+    const variety = new Set(prot).size + new Set(mains.map(r => r.cuisine)).size * 0.5 + new Set(real.map(r => r.id)).size * 0.5;
+    const repeats = prot.length - new Set(prot).size, pref = real.reduce((a, r) => a + Math.log(fit(r)), 0);
+    const sc = (has("cheap") ? t : 0.3 * t) + pen + wasted * 1.5 - variety * (has("variety") ? 3 : 0.8) + (has("variety") ? repeats * 2 : 0) - pref * 2;
+    if (!best || sc < best.sc) best = { plan, slots, sc, t, pools };
+    if (t <= budget && attempt > 12 && !has("variety")) break;
+  }
+  return best;
+}
+function generate() {
+  let best = null;
+  const here = chainsHere();
+  if (prof.chain !== "auto" && !here.includes(prof.chain)) prof.chain = "auto";
+  for (const id of prof.chain === "auto" ? here : [prof.chain]) {
+    const p = planFor(id), miss = shoppingList(p.plan.filter(Boolean), id, servFactor()).missing.length, key = p.t + miss * 100;
+    if (!best || key < best.key) best = { ...p, id, key };
+  }
+  st.chain = best.id;
+  st.entries = best.plan.map((r, i) => ({ ...best.slots[i], r })).filter(e => e.r);
+  st.poolSizes = { breakfast: best.pools.breakfast.length, main: best.pools.main.length };
+  render();
+}
+function swap(i) {
+  const e = st.entries[i], k = poolKind(e.slot);
+  const near = st.entries.filter(x => Math.abs(x.day - e.day) <= 1).map(x => x.r.id);
+  const pool = eligible().filter(r => r.meal === k), pantry = {};
+  st.entries.forEach((x, j) => { if (j !== i && x.day <= e.day) useUp(x.r, st.chain, servFactor(), pantry, x.day); });
+  const r = weightedPick(pool, st.chain, servFactor(), new Set([...near, ...st.entries.map(x => x.r.id)]), pantry, e.day) || weightedPick(pool, st.chain, servFactor(), new Set(near), pantry, e.day);
+  if (r) { e.r = r; render(); }
+}
+
+// ---------- derived numbers ----------
+function calc() {
+  const plan = st.entries.map(e => e.r), f = servFactor();
+  const sl = shoppingList(plan, st.chain, f);
+  const sim = shoppingTrips(st.entries, st.chain, f), trips = sim.trips, tripTotal = trips.reduce((a, t) => a + t.total, 0);
+  st.info = sim.info; st.waste = sim.waste;
+  const alloc = plan.map(() => 0);
+  for (const l of sl.lines) {
+    const use = plan.map(r => r.ing[l.ing] ? unitQty(l.ing, r.ing[l.ing]) * f : 0), sum = use.reduce((a, b) => a + b, 0);
+    if (sum) use.forEach((u, i) => { alloc[i] += l.cost * u / sum; });
+  }
+  const k = sl.total ? tripTotal / sl.total : 1; // more trips = slightly different rounding; keep cards = header
+  return { plan, sl, alloc: alloc.map(a => a * k), trips, tripTotal };
+}
+function weekDates() {
+  const t = new Date(), mon = new Date(t); mon.setDate(t.getDate() - ((t.getDay() + 6) % 7));
+  return Array.from({ length: 7 }, (_, i) => { const d = new Date(mon); d.setDate(mon.getDate() + i); return d; });
+}
+const fmtD = d => `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+
+// ---------- render ----------
+function render() {
+  const { plan, sl, alloc, trips, tripTotal } = calc(), ppl = people(), dates = weekDates(), days = daysN();
+  // header
+  $("weeklbl").textContent = `${days === 7 ? "Тази седмица" : days + (days === 1 ? " ден" : " дни")} · ${fmtD(dates[0])} – ${fmtD(dates[days - 1])}`;
+  $("chainbadge").textContent = D.chains[st.chain].name + (prof.city && D.cities[prof.city] ? " · " + D.cities[prof.city].name : "");
+  $("totalv").textContent = eur(tripTotal);
+  $("totals").textContent = `от ${prof.budget} € бюджет · ${plan.length} ${plan.length === 1 ? "ястие" : "ястия"}`;
+  $("budgetbar").className = "bar" + (tripTotal > prof.budget ? " over" : "");
+  $("budgetbar").firstElementChild.style.width = Math.min(100, tripTotal / prof.budget * 100) + "%";
+  $("daystrip").innerHTML = dates.map((d, i) => `<button type="button" class="${i >= days ? "off" : ""}" data-day="${i}" ${i >= days ? "disabled" : ""}>${DSHORT[i]}<span>${d.getDate()}</span></button>`).join("");
+  document.querySelectorAll("[data-day]").forEach(b => b.onclick = () => {
+    document.querySelectorAll("[data-day]").forEach(x => x.classList.toggle("on", x === b));
+    const t = $("day-" + b.dataset.day); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  // list of days
+  const nShort = (prof.meals.some(m => m !== "breakfast") && st.poolSizes.main < Math.min(days, 7)) || (prof.meals.includes("breakfast") && st.poolSizes.breakfast < 3);
+  let h = nShort ? `<div class="notice"><b>Предпочитанията ти оставят ${st.poolSizes.main} основни ястия${prof.meals.includes("breakfast") ? ` и ${st.poolSizes.breakfast} закуски` : ""}.</b> Някои ще се повторят. Отпусни някое ограничение от „Моето меню“.</div>` : "";
+  const byDay = [];
+  st.entries.forEach((e, i) => (byDay[e.day] = byDay[e.day] || []).push({ e, i }));
+  byDay.forEach((items, d) => {
+    const dc = items.reduce((a, x) => a + alloc[x.i], 0) / ppl;
+    h += `<div class="dayh" id="day-${d}" style="scroll-margin-top:12px"><h2>${DAYS[d]}<small>${fmtD(dates[d])}</small></h2><span class="dc">${eur(dc)} на човек</span></div>`;
+    for (const { e, i } of items) {
+      const r = e.r, n = recipeNut(r), promo = Object.keys(r.ing).some(k => (prod(st.chain, k) || {}).pr);
+      const inf = (st.info && st.info[i]) || { left: [], warn: [] }, reuse = inf.left.filter(k => shelf(k) <= 14);
+      const extra = inf.warn.length ? `<span class="tag warn">Провери срока</span>` : reuse.length ? `<span class="tag reuse">Доизползва ${D.ing[reuse[0]].bg.toLowerCase()}</span>` : r.min <= 35 ? `<span class="tag quick">Бързо</span>` : n.prot >= 30 ? `<span class="tag prot">Протеин</span>` : "";
+      const tags = (prof.meals.length > 1 ? `<span class="tag slot">${slotName(e.slot)}</span>` : "") + extra + (promo && !inf.warn.length ? `<span class="tag promo">Промо</span>` : "");
+      h += `<div class="meal" role="button" tabindex="0" data-open="${i}">
+        <div class="ill">${dishImg(r)}</div>
+        <div><div class="tags">${tags}</div><h3>${r.name}</h3><div class="sub">${r.min} мин · ${n.kcal} kcal${r.without ? " · без " + r.without.join(", ") : ""}</div></div>
+        <div class="price"><button class="swapbtn" type="button" data-swap="${i}" aria-label="Смени ястието">${I.swap}</button><div><b class="tnum">${eur(alloc[i] / ppl)}</b><small>на порция</small></div></div>
+      </div>`;
+    }
+  });
+  h += `<p class="foot">Цени от ${D.date.split("-").reverse().join(".")} по отворените данни на КЗП „Колко струва“ (${prof.city && D.cities[prof.city] ? "медиана по обектите в " + D.cities[prof.city].name : "средно за веригата"}). Цената на порция включва и остатъка от цели опаковки.</p>`;
+  $("planlist").innerHTML = h;
+  document.querySelectorAll("[data-open]").forEach(el => {
+    el.onclick = ev => { if (ev.target.closest("[data-swap]")) return; openRecipe(+el.dataset.open); };
+    el.onkeydown = ev => { if (ev.key === "Enter") openRecipe(+el.dataset.open); };
+  });
+  document.querySelectorAll("[data-swap]").forEach(b => b.onclick = ev => { ev.stopPropagation(); swap(+b.dataset.swap); });
+  $("fab").innerHTML = trips.length > 1 ? `${I.list}Списъци за пазаруване <small>· ${trips.length} пъти</small>` : `${I.list}Списък за пазаруване <small>· ${sl.lines.length} продукта</small>`;
+  renderList(trips, dates); renderCompare(plan); renderProfile();
+  showTab(st.tab);
+}
+
+function renderList(trips, dates) {
+  const cname = D.chains[st.chain].name, days = daysN();
+  st.checked = st.checked || new Set();
+  if (st.trip == null || st.trip >= trips.length) st.trip = 0;
+  const t = trips[st.trip], key = l => `${st.trip}:${l.ing}`;
+  const label = tr => tr.days.length === 1 ? `${DAYS[tr.days[0]]}` : `${DAYS[tr.days[0]].slice(0, 3)} – ${DAYS[tr.days[tr.days.length - 1]].slice(0, 3)}`;
+  $("listsub").textContent = `${cname} · ${days} ${days === 1 ? "ден" : "дни"} · ${people()} ${people() === 1 ? "човек" : "души"}`;
+  const done = t.lines.filter(l => st.checked.has(key(l))).length;
+  let h = `<div class="seg" role="tablist" style="margin:0 0 12px">${SHOP.map(([id, l]) => `<button type="button" role="tab" data-shop="${id}" class="${prof.shop === id ? "on" : ""}">${l}</button>`).join("")}</div>`.replace('class="seg"', 'class="seg seg3"');
+  if (trips.length > 1) h += `<div class="trips">${trips.map((tr, i) => `<button type="button" data-trip="${i}" class="${i === st.trip ? "on" : ""}"><b>${tr.days.length === 1 ? DSHORT[tr.days[0]] + " " + dates[tr.days[0]].getDate() : label(tr)}</b><small class="tnum">${eur(tr.total)}</small></button>`).join("")}</div>`;
+  h += `<div class="card"><div style="font-size:13px;font-weight:800;color:var(--muted)">${trips.length > 1 ? (t.days.length === 1 ? "Пазаруване за " + DAYS[t.days[0]].toLowerCase() + ", " + fmtD(dates[t.days[0]]) : "Пазаруване за " + label(t).toLowerCase()) : "Всичко за периода"}</div>
+    <div class="sumrow" style="margin-top:2px"><span style="font-weight:700;color:var(--muted)">${t.lines.length} ${t.lines.length === 1 ? "продукт" : "продукта"}</span><b class="tnum">${eur(t.total)}</b></div>
+    <div class="progress" style="margin-top:10px"><div class="bar"><i style="width:${t.lines.length ? done / t.lines.length * 100 : 0}%"></i></div><span>${done} от ${t.lines.length} взети</span></div></div>`;
+  if (!t.lines.length) h += `<div class="card" style="text-align:center;font-weight:700">Днес не трябва да купуваш нищо. Всичко ти остава от предишното пазаруване.</div>`;
+  for (const a of AISLES) {
+    const ls = t.lines.filter(l => l.meta.aisle === a).sort((x, y) => y.cost - x.cost);
+    if (!ls.length) continue;
+    h += `<div class="aisle"><h4>${a}</h4><div class="card" style="padding:4px 14px">` + ls.map(l => `<label class="li ${st.checked.has(key(l)) ? "done" : ""}" for="c_${l.ing}"><input type="checkbox" id="c_${l.ing}" data-ck="${key(l)}" ${st.checked.has(key(l)) ? "checked" : ""}>
+      <span><span class="nm">${l.meta.bg}</span><br><span class="pd">${l.p.n} · ${l.label}</span>${l.freezeDays && l.freezeDays.length ? `<br><span class="pd" style="color:#8A4B00;font-weight:700">Замрази частта за ${l.freezeDays.map(d => DAYS_ACC[d]).join(" и ")}</span>` : ""}</span>
+      <span class="pr tnum">${eur(l.cost)}${l.p.pr ? "<small>промо</small>" : ""}</span></label>`).join("") + `</div></div>`;
+  }
+  if (st.trip === trips.length - 1 && st.waste && st.waste.length) h += `<div class="alert" style="margin-bottom:12px"><b>Може да остане неизползвано (~${eur(st.waste.reduce((a, w) => a + w.val, 0))}):</b> ${st.waste.map(w => `${D.ing[w.ing].bg.toLowerCase()} ${w.amt}`).join(", ")}. Менюто вече подбира ястия, които доизползват отворените опаковки; остатъкът е от размера на опаковките във веригата.</div>`;
+  if (t.have.length) h += `<div class="aisle"><h4>Вече имаш от предишно пазаруване</h4><div class="card"><div class="chips">${t.have.map(x => `<span class="chip">${x.meta.bg} · ${x.amt}</span>`).join("")}</div></div></div>`;
+  if (t.missing.length) h += `<div class="warnbox"><b>Няма цена в ${cname}:</b> ${t.missing.join(", ")}. Веригата не подава тези категории, сумата е по-ниска от реалната.</div>`;
+  h += `<p class="note">Имаш вкъщи: ${Object.values(D.pantry).join(", ").toLowerCase()}.${trips.length > 1 ? " Остатъците от опаковки (ориз, олио, брашно) се пренасят напред, за да не ги купуваш два пъти." : ""}</p>
+    <button class="btn dark" id="copy" type="button">Копирай ${trips.length > 1 ? "този списък" : "списъка"}</button>`;
+  $("listbody").innerHTML = h;
+  document.querySelectorAll("[data-shop]").forEach(b => b.onclick = () => { prof.shop = b.dataset.shop; saveProfile(); st.trip = 0; render(); });
+  document.querySelectorAll("[data-trip]").forEach(b => b.onclick = () => { st.trip = +b.dataset.trip; renderList(trips, dates); });
+  document.querySelectorAll("[data-ck]").forEach(c => c.onchange = () => { c.checked ? st.checked.add(c.dataset.ck) : st.checked.delete(c.dataset.ck); renderList(trips, dates); });
+  st.text = `Списък – ${cname}${trips.length > 1 ? " – " + label(t) : ""}\n` + AISLES.map(a => t.lines.filter(l => l.meta.aisle === a).map(l => `- ${l.meta.bg}: ${l.label} (${eur(l.cost)})`).join("\n")).filter(Boolean).join("\n") + `\nОбщо: ${eur(t.total)}`;
+  $("copy").onclick = async () => {
+    try { await navigator.clipboard.writeText(st.text); $("copy").textContent = "Копирано ✓"; } catch (e) { $("copy").textContent = "Браузърът не позволи копиране"; }
+    setTimeout(() => { const c = $("copy"); if (c) c.textContent = "Копирай списъка"; }, 2000);
+  };
+}
+
+function renderCompare(plan) {
+  const f = servFactor();
+  const rows = chainsHere().map(id => { const s = shoppingList(plan, id, f); return { id, name: D.chains[id].name, total: s.total, miss: s.missing.length }; });
+  const complete = rows.filter(r => !r.miss), best = (complete.length ? complete : rows).reduce((a, b) => (b.total < a.total ? b : a));
+  const cur = rows.find(r => r.id === st.chain), max = Math.max(...rows.map(r => r.total), 1);
+  let h = best.id !== st.chain
+    ? `<div class="bestcard"><div style="font-size:13px;font-weight:700;opacity:.75">Най-евтино с пълен списък</div><b>${best.name}</b><div style="margin:4px 0 12px;font-weight:600">${eur(best.total)}, с ${eur(cur.total - best.total)} по-малко от ${cur.name}</div><button class="btn primary" id="sw" type="button">Пазарувай в ${best.name}</button></div>`
+    : `<div class="bestcard"><div style="font-size:13px;font-weight:700;opacity:.75">Пазаруваш на най-изгодното място</div><b>${best.name} · ${eur(best.total)}</b></div>`;
+  h += `<div class="card" style="padding:4px 16px">` + rows.sort((a, b) => a.total - b.total).map(r => `<div class="cmp ${r.id === best.id ? "best" : ""} ${r.id === st.chain ? "cur" : ""}"><span class="nm">${r.name}</span><span class="tr"><i style="width:${(r.total / max * 100).toFixed(1)}%"></i></span><span class="v tnum">${eur(r.total)}${r.miss ? `<small>без ${r.miss} ${r.miss === 1 ? "продукт" : "продукта"}</small>` : ""}</span></div>`).join("") + `</div>`;
+  const city = prof.city && D.cities[prof.city];
+  const absent = city ? Object.keys(D.chains).filter(id => !city.c[id]).map(id => D.chains[id].name) : [];
+  h += `<p class="note">${city ? `Цени от обектите в ${city.name} (медиана по обектите на всяка верига)` : "Средни цени за веригата в цялата страна"} към ${D.date.split("-").reverse().join(".")}.${absent.length ? " Няма обекти в града: " + absent.join(", ") + "." : ""} Където веригата не подава даден продукт към КЗП, сумата е отбелязана като непълна.</p>`;
+  $("cmpbody").innerHTML = h;
+  const sw = $("sw"); if (sw) sw.onclick = () => { prof.chain = best.id; saveProfile(); st.chain = best.id; render(); };
+}
+
+function renderProfile() {
+  const chips = [prof.meals.map(slotName).join(" + "), DIETS.find(d => d[0] === prof.diet)[1], ...prof.priorities.map(p => PRIORITIES.find(x => x.id === p).label), ...prof.cuisines.map(cuisineName), prof.minutes < 999 ? `до ${prof.minutes} мин` : "", prof.oven ? "" : "без фурна", ...prof.dislikes.map(d => "без " + DISLIKES.find(x => x.id === d).label.toLowerCase())].filter(Boolean);
+  $("profbody").innerHTML = `
+    <div class="card"><div class="kv"><span>Души</span><div class="stepper"><button type="button" data-pp="-1" aria-label="По-малко">−</button><b>${prof.people}</b><button type="button" data-pp="1" aria-label="Повече">+</button></div></div>
+      <div class="kv"><span>Дни</span><div class="stepper"><button type="button" data-nd="-1" aria-label="По-малко">−</button><b>${prof.nights}</b><button type="button" data-nd="1" aria-label="Повече">+</button></div></div>
+      <div class="kv"><span>Бюджет</span><div class="stepper"><button type="button" data-bd="-5" aria-label="По-малко">−</button><b>${prof.budget} €</b><button type="button" data-bd="5" aria-label="Повече">+</button></div></div>
+      <div class="kv"><span>Град</span><select class="sel" id="citysel" aria-label="Град" style="max-width:190px"><option value="">Цялата страна</option>${Object.entries(D.cities).map(([e, c]) => `<option value="${e}">${c.name}</option>`).join("")}</select></div>
+      <div class="kv"><span>Пазаруване</span><select class="sel" id="shopsel" aria-label="Колко често пазаруваш">${SHOP.map(([id, , l]) => `<option value="${id}">${l}</option>`).join("")}</select></div>
+      <div class="kv"><span>Магазин</span><select class="sel" id="chainsel" aria-label="Магазин"><option value="auto">Най-евтиното</option>${chainsHere().map(id => `<option value="${id}">${D.chains[id].name}</option>`).join("")}</select></div></div>
+    <div class="card"><div style="font-weight:800;margin-bottom:10px">Предпочитания</div><div class="chips">${chips.map(c => `<span class="chip">${c}</span>`).join("")}</div>
+      <button class="btn ghost" id="editprefs" type="button" style="margin-top:14px">Промени предпочитанията</button></div>
+    <button class="btn primary" id="regen2" type="button">Направи ново меню</button>
+    <p class="foot">Данни: отворени данни на КЗП „Колко струва“ (kolkostruva.bg), обработени с отворения код smartbasket-data; средна цена по веригата към ${D.date.split("-").reverse().join(".")}, в евро. ${D.recipes.filter(r => r.meal === "main").length} основни ястия и ${D.recipes.filter(r => r.meal === "breakfast").length} закуски, само с продукти с реална цена. Подправки, сол и вода се приемат за налични вкъщи. Хранителните стойности са ориентировъчни. Прототип.</p>`;
+  $("chainsel").value = prof.chain;
+  $("shopsel").value = prof.shop || "weekly";
+  $("citysel").value = prof.city || "";
+  $("citysel").onchange = e => { prof.city = e.target.value; saveProfile(); generate(); };
+  $("shopsel").onchange = e => { prof.shop = e.target.value; saveProfile(); st.trip = 0; render(); };
+  $("chainsel").onchange = e => { prof.chain = e.target.value; saveProfile(); generate(); };
+  const step = (attr, key, lo, hi, regen) => document.querySelectorAll(`[data-${attr}]`).forEach(b => b.onclick = () => {
+    prof[key] = Math.min(hi, Math.max(lo, prof[key] + +b.dataset[attr])); saveProfile(); regen ? generate() : render();
+  });
+  step("pp", "people", 1, 8, false); step("nd", "nights", 1, 7, true); step("bd", "budget", 10, 300, true);
+  $("editprefs").onclick = openWizard; $("regen2").onclick = () => { generate(); showTab("plan"); };
+}
+
+// ---------- tabs ----------
+const TABS = [["plan", "План", I.plan], ["list", "Списък", I.list], ["cmp", "Сравни", I.cmp], ["prof", "Профил", I.user]];
+$("nav").innerHTML = TABS.map(([id, l, ic]) => `<button type="button" data-tab="${id}"><span class="ic">${ic}</span>${l}</button>`).join("");
+document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+function showTab(t) {
+  st.tab = t;
+  for (const [id] of TABS) $("s-" + id).hidden = id !== t;
+  document.querySelectorAll("[data-tab]").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
+  $("fab").hidden = t !== "plan";
+}
+$("fab").onclick = () => { showTab("list"); window.scrollTo(0, 0); };
+$("brand").innerHTML = `${I.basket}<span>кошничка</span>`;
+$("regen").innerHTML = I.refresh; $("regen").onclick = generate;
+
+// ---------- recipe screen ----------
+const FRAC = { 0.25: "¼", 0.5: "½", 0.75: "¾" };
+function quarter(x) { const q = Math.max(0.25, Math.round(x * 4) / 4), w = Math.floor(q), fr = +(q - w).toFixed(2); return { q, txt: (w ? String(w) : "") + (FRAC[fr] || "") }; }
+function scaleQty(num, unit, mult) {
+  const x = num * mult; let [pl, sg] = unit.split("/"); pl = pl.trim(); sg = (sg || pl).trim();
+  if (["ч.л.", "с.л.", "чаша", "пакетче"].includes(pl)) { const { q, txt } = quarter(x); return `${txt} ${pl === "чаша" ? (q > 1 ? "чаши" : "чаша") : pl === "пакетче" ? (q > 1 ? "пакетчета" : "пакетче") : pl}`; }
+  if (pl === "л") return x < 1 ? `${Math.round(x * 1000 / 50) * 50} мл` : `${(Math.round(x * 10) / 10).toString().replace(".", ",")} л`;
+  if (pl === "мл") return `${x < 200 ? Math.max(10, Math.round(x / 10) * 10) : Math.round(x / 50) * 50} мл`;
+  if (pl === "г") return `${Math.max(10, Math.round(x / 10) * 10)} г`;
+  const n = Math.max(1, Math.round(x)); return `${n} ${n === 1 ? sg : pl}`;
+}
+function stepHtml(text, r, need) {
+  const f = servFactor(), mult = people() / 4;
+  return text
+    .replace(/\{(\d+(?:[.,]\d+)?)\s*([^}]*)\}/g, (_, n, u) => `<span class="q-amt">${scaleQty(parseFloat(n.replace(",", ".")), u, mult)}</span>`)
+    .replace(/([\wА-Яа-яЁёЪъЬь-]+)@([a-z_]+)(?:\*([\d.]+))?/g, (_, word, id, fr) => {
+      if (!r.ing[id]) return `<span class="q-skip">${word}</span>`;
+      const amt = fmtQty(id, r.ing[id] * f * (fr ? +fr : 1));
+      if (need) need.push([D.ing[id].bg, amt]);
+      return `${word} <span class="q-amt">(${amt})</span>`;
+    });
+}
+let rec = null;
+function openRecipe(i) { rec = { i, tab: "ing" }; $("rec").hidden = false; document.body.style.overflow = "hidden"; drawRecipe(); $("recscroll").scrollTop = 0; }
+function closeRecipe() { $("rec").hidden = true; document.body.style.overflow = ""; }
+function drawRecipe() {
+  const { alloc } = calc(), e = st.entries[rec.i], r = e.r, f = servFactor(), ppl = people(), n = recipeNut(r);
+  $("rhero").innerHTML = dishImg(r, true) + `<button class="back" type="button" id="rback" aria-label="Назад">${I.back}</button><span class="pp tnum">${eur(alloc[rec.i] / ppl)} на порция</span>`;
+  $("rback").onclick = closeRecipe;
+  const tot = n.prot * 4 + n.carb * 4 + n.fat * 9 || 1;
+  const tags = [prof.meals.length > 1 ? `<span class="tag slot">${slotName(e.slot)}</span>` : "", `<span class="tag">${cuisineName(r.cuisine)}</span>`, r.min <= 35 ? `<span class="tag quick">Бързо</span>` : "", r.tags.includes("oven") ? `<span class="tag">Фурна</span>` : ""].join("");
+  let body = `<div class="tags">${tags}</div><h1 id="rt">${r.name}</h1><p class="lead">${DAYS[e.day]} · ${D.chains[st.chain].name}${r.without ? " · без " + r.without.join(", ") : ""}</p>${freshNotes(rec.i)}
+    <div class="stats"><div><b>${ppl}</b><span>порции</span></div><div><b>${r.min}</b><span>минути</span></div><div><b>${n.kcal}</b><span>kcal / порция</span></div></div>
+    <div class="macros"><div class="mbar"><i style="flex:${n.prot * 4 / tot};background:var(--sea)"></i><i style="flex:${n.carb * 4 / tot};background:var(--sun)"></i><i style="flex:${n.fat * 9 / tot};background:var(--tomato)"></i></div>
+      <div class="mleg"><div><b>${n.prot} г</b><span><i style="background:var(--sea)"></i>Протеин</span></div><div><b>${n.carb} г</b><span><i style="background:var(--sun)"></i>Въглехидрати</span></div><div><b>${n.fat} г</b><span><i style="background:var(--tomato)"></i>Мазнини</span></div></div></div>
+    <div class="seg" role="tablist"><button type="button" role="tab" data-rt="ing" class="${rec.tab === "ing" ? "on" : ""}">Продукти</button><button type="button" role="tab" data-rt="steps" class="${rec.tab === "steps" ? "on" : ""}">Приготвяне</button></div>`;
+  if (rec.tab === "ing") {
+    body += Object.entries(r.ing).map(([k, q]) => {
+      const p = prod(st.chain, k), c = ING_COL[k] || "#ccc";
+      return `<div class="ing"><span class="dot" style="background:${c}33"><i style="background:${c};border:1px solid rgba(0,0,0,.1)"></i></span><span><b>${D.ing[k].bg}</b><small>${p ? D.chains[st.chain].name + ": " + p.n : "няма цена в тази верига"}</small></span><span class="q">${fmtQty(k, q * f)}</span></div>`;
+    }).join("");
+    const pantry = (r.pan || []).map(x => D.pantry[x].toLowerCase());
+    if (pantry.length) body += `<p class="minor">От вкъщи: ${pantry.join(", ")}, вода.</p>`;
+    if (r.eq) body += `<p class="minor"><b>Съдове:</b> ${r.eq}.</p>`;
+  } else {
+    body += `<ol class="steps">${r.steps.map(s => `<li><span class="st">${s.t}${s.timer ? ` <small>· ${s.timer} мин</small>` : ""}</span><span class="sd">${stepHtml(s.d, r)}</span>${s.tip ? `<span class="tip"><b>Съвет:</b> ${s.tip}</span>` : ""}</li>`).join("")}</ol>`;
+  }
+  $("rbody").innerHTML = body;
+  document.querySelectorAll("[data-rt]").forEach(b => b.onclick = () => { rec.tab = b.dataset.rt; drawRecipe(); });
+}
+$("rcook").onclick = () => { const i = rec.i; closeRecipe(); openCook(i); };
+$("rswap").onclick = () => { swap(rec.i); drawRecipe(); $("recscroll").scrollTop = 0; };
+
+function freshNotes(i) {
+  const inf = (st.info && st.info[i]) || { left: [], warn: [] };
+  let h = "";
+  const reuse = inf.left.filter(k => shelf(k) <= 14 && !inf.warn.some(w => w.ing === k));
+  if (reuse.length) h += `<div class="good"><b>Доизползва остатък:</b> ${reuse.map(k => D.ing[k].bg.toLowerCase()).join(", ")} от вече отворена опаковка. Затова това ястие е в менюто този ден.</div>`;
+  for (const w of inf.warn) {
+    h += `<div class="alert"><b>${D.ing[w.ing].bg}: провери срока.</b> Купено ${w.bought === 0 && prof.shop === "weekly" ? "при голямото пазаруване" : "в " + DAYS_ACC[w.bought]}, преди ${w.age} ${w.age === 1 ? "ден" : "дни"}. Виж датата на опаковката, цвета и миризмата. ${w.freeze ? "Ако си го замразил в деня на пазаруването, размрази го в хладилника от предната вечер." : "Ако не е наред, купи свежо."}</div>`;
+  }
+  return h;
+}
+
+// ---------- cooking mode ----------
+let ck = null, wake = null;
+function openCook(i) {
+  ck = { i, step: 0, timer: null, left: 0 }; $("cook").hidden = false; document.body.style.overflow = "hidden";
+  try { navigator.wakeLock && navigator.wakeLock.request("screen").then(w => { wake = w; }).catch(() => {}); } catch (e) {}
+  drawCook();
+}
+function closeCook() { stopTimer(); $("cook").hidden = true; document.body.style.overflow = ""; try { wake && wake.release(); } catch (e) {} wake = null; }
+function stopTimer() { if (ck && ck.timer) { clearInterval(ck.timer); ck.timer = null; } }
+const mmss = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+function beep() {
+  try { const ac = ck.ac; if (ac) [0, .35, .7].forEach(t => { const o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = 880; o.connect(g); g.connect(ac.destination); g.gain.setValueAtTime(.2, ac.currentTime + t); o.start(ac.currentTime + t); o.stop(ac.currentTime + t + .2); }); } catch (e) {}
+  try { navigator.vibrate && navigator.vibrate([300, 150, 300]); } catch (e) {}
+}
+function drawCook() {
+  const r = st.entries[ck.i].r, s = r.steps[ck.step], n = r.steps.length, need = [], body = stepHtml(s.d, r, need), mine = !!ck.timer && ck.timerStep === ck.step;
+  $("cn").textContent = r.name;
+  $("cdots").innerHTML = r.steps.map((_, j) => `<i class="${j <= ck.step ? "on" : ""}"></i>`).join("");
+  $("cbody").innerHTML = `${ck.step === 0 ? freshNotes(ck.i) : ""}<span class="n">СТЪПКА ${ck.step + 1} ОТ ${n}</span><h2>${s.t}</h2>
+    ${need.length ? `<div class="need">${need.map(([nm, a]) => `<span>${nm} <b>${a}</b></span>`).join("")}</div>` : ""}
+    <p class="sd">${body}</p>${s.tip ? `<div class="tip"><b>Съвет:</b> ${s.tip}</div>` : ""}
+    ${s.timer ? `<div class="timer" id="tbox"><span class="clock" id="tclock">${mmss(mine ? ck.left : s.timer * 60)}</span><button type="button" id="tbtn">${mine ? "Спри" : `Таймер ${s.timer} мин`}</button></div>` : ""}
+    ${ck.timer && !mine ? `<p class="tmr">Таймерът от стъпка ${ck.timerStep + 1} продължава да тече.</p>` : ""}`;
+  $("cprev").textContent = ck.step ? "Назад" : "Рецептата";
+  $("cnext").textContent = ck.step < n - 1 ? "Следваща стъпка" : "Готово, добър апетит!";
+  const tb = $("tbtn");
+  if (tb) tb.onclick = () => {
+    if (mine) { stopTimer(); ck.left = 0; drawCook(); return; }
+    stopTimer(); try { ck.ac = ck.ac || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+    ck.left = s.timer * 60; ck.timerStep = ck.step;
+    ck.timer = setInterval(() => {
+      ck.left--; const c = $("tclock"); if (c && ck.step === ck.timerStep) c.textContent = mmss(Math.max(0, ck.left));
+      if (ck.left <= 0) { stopTimer(); beep(); const b = $("tbox"); if (b && ck.step === ck.timerStep) { b.classList.add("done"); $("tclock").textContent = "Готово!"; $("tbtn").textContent = "Пак"; } }
+    }, 1000);
+    drawCook();
+  };
+  $("cscroll").scrollTop = 0;
+}
+function cookGo(d) {
+  const n = st.entries[ck.i].r.steps.length;
+  if (d < 0 && ck.step === 0) { const i = ck.i; closeCook(); openRecipe(i); rec.tab = "steps"; drawRecipe(); return; }
+  if (d > 0 && ck.step === n - 1) { closeCook(); return; }
+  ck.step += d; drawCook();
+}
+$("cprev").onclick = () => cookGo(-1); $("cnext").onclick = () => cookGo(1); $("cclose").onclick = closeCook;
+(() => { let x0 = null; const el = $("cscroll");
+  el.addEventListener("touchstart", e => { x0 = e.touches[0].clientX; }, { passive: true });
+  el.addEventListener("touchend", e => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 70) cookGo(dx < 0 ? 1 : -1); }, { passive: true });
+})();
+
+// ---------- onboarding ----------
+const OB = [
+  { q: "За колко души готвиш?", h: "Количествата и списъкът се смятат за толкова порции.", kind: "people" },
+  { q: "Кои хранения да планираме?", h: "Всеки ден получаваш рецепта за всяко избрано хранене.", kind: "cards", key: "meals", multi: true, min: 1, opts: [["breakfast", "Закуска", "бързи сутрешни рецепти", I.sun], ["lunch", "Обяд", "основни ястия", I.plate], ["dinner", "Вечеря", "основни ястия", I.moon]] },
+  { q: "Кое е най-важно за теб?", h: "Избери до две. Менюто ще ги предпочита.", kind: "chips", key: "priorities", multi: true, max: 2, opts: PRIORITIES.map(p => [p.id, p.label]) },
+  { q: "Какви кухни обичаш?", h: "Избраните ще виждаш по-често. Може и нищо.", kind: "chips", key: "cuisines", multi: true, opts: CUISINES },
+  { q: "Как се храниш?", kind: "cards", key: "diet", opts: DIETS.map(([id, l, h]) => [id, l, h, I.plate]) },
+  { q: "Има ли нещо, което не ядеш?", h: "Ястията с тях отпадат. Лукът и чесънът само се махат от рецептата.", kind: "chips", key: "dislikes", multi: true, opts: DISLIKES.map(d => [d.id, d.label]) },
+  { q: "Колко време имаш за готвене?", kind: "cards", key: "minutes", opts: [[35, "До 35 минути", "бързи ястия", I.clock], [60, "До час", "повечето ястия", I.clock], [999, "Нямам ограничение", "и бавно готвене", I.clock]] },
+  { q: "Какво има в кухнята ти?", h: "Без фурна махаме печените ястия.", kind: "cards", key: "oven", opts: [[true, "Котлон и фурна", "всички рецепти", I.oven], [false, "Само котлон", "без печени ястия", I.stove]] },
+  { q: "В кой град пазаруваш?", h: "Взимаме цените от магазините в твоя град и показваме само веригите, които ги има там.", kind: "city" },
+  { q: "Къде пазаруваш?", h: "Цените на менюто се смятат по веригата.", kind: "stores", key: "chain" },
+  { q: "Колко често пазаруваш?", h: "Ако пазаруваш по-често, ще получиш отделен списък за всяко пазаруване и купуваш по-свежо.", kind: "cards", key: "shop", opts: SHOP.map(([id, , l, h]) => [id, l, h, I.basket]) },
+  { q: "Какъв е бюджетът ти?", h: "За целия период, за всички вкъщи.", kind: "budget" },
+];
+let wi = 0, draft = null;
+function openWizard() { draft = JSON.parse(JSON.stringify(prof)); wi = 0; $("ob").hidden = false; document.body.style.overflow = "hidden"; drawOb(); }
+function closeWizard(apply) {
+  $("ob").hidden = true; document.body.style.overflow = "";
+  if (!apply) return;
+  delete draft._bt; draft.meals = SLOTS.map(s => s[0]).filter(m => draft.meals.includes(m));
+  prof = draft; saveProfile(); st.tab = "plan"; generate();
+}
+function eligibleFor(p) { const keep = prof; prof = p; const r = eligible(); prof = keep; return r; }
+function drawOb() {
+  const S = OB[wi], b = $("obbody");
+  $("obdash").innerHTML = OB.map((_, j) => `<i class="${j <= wi ? "on" : ""}"></i>`).join("");
+  $("obcount").textContent = `${wi + 1}/${OB.length}`;
+  $("obback").innerHTML = wi ? I.back : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
+  $("obback").setAttribute("aria-label", wi ? "Назад" : "Затвори");
+  $("obq").textContent = S.q; $("obh").textContent = S.h || ""; $("obh").hidden = !S.h;
+  $("obnext").textContent = wi === OB.length - 1 ? "Направи менюто" : "Продължи";
+  const pressed = v => S.multi ? draft[S.key].includes(v) : draft[S.key] === v;
+  const pick = v => {
+    if (S.multi) { const a = draft[S.key]; if (a.includes(v)) { if (!(S.min && a.length <= S.min)) a.splice(a.indexOf(v), 1); } else { if (S.max && a.length >= S.max) a.shift(); a.push(v); } }
+    else draft[S.key] = v;
+    drawOb();
+  };
+  if (S.kind === "people") {
+    b.innerHTML = `<div class="peoplebox"><div class="stepper"><button type="button" id="pm" aria-label="По-малко">−</button><b class="tnum">${draft.people}</b><button type="button" id="pp" aria-label="Повече">+</button></div><span style="color:var(--muted);font-weight:700">${draft.people === 1 ? "човек" : "души"}</span></div>`;
+    $("pm").onclick = () => { draft.people = Math.max(1, draft.people - 1); drawOb(); };
+    $("pp").onclick = () => { draft.people = Math.min(8, draft.people + 1); drawOb(); };
+  } else if (S.kind === "chips") {
+    b.innerHTML = `<div class="optgrid">${S.opts.map(([v, l]) => `<button type="button" class="opt" aria-pressed="${pressed(v)}" data-v="${v}"><span class="ck"></span>${l}</button>`).join("")}</div>` +
+      (S.key === "dislikes" ? `<p class="hint" style="margin-top:16px">С тези отговори остават <b>${eligibleFor(draft).length}</b> от ${D.recipes.length} рецепти.</p>` : "");
+    b.querySelectorAll("[data-v]").forEach(x => x.onclick = () => pick(x.dataset.v));
+  } else if (S.kind === "cards") {
+    b.innerHTML = `<div class="optlist">${S.opts.map(([v, l, h, ic], j) => `<button type="button" class="optcard" aria-pressed="${pressed(v)}" data-j="${j}"><span class="ico">${ic}</span><span><b>${l}</b><small>${h}</small></span></button>`).join("")}</div>`;
+    b.querySelectorAll("[data-j]").forEach(x => x.onclick = () => { pick(S.opts[+x.dataset.j][0]); if (!S.multi) setTimeout(() => { if (wi < OB.length - 1) { wi++; drawOb(); } }, 220); });
+  } else if (S.kind === "city") {
+    const list = q => Object.entries(D.cities).filter(([e, c]) => !q || c.name.toLowerCase().startsWith(q.toLowerCase())).slice(0, q ? 30 : 12);
+    const draw = q => {
+      $("citylist").innerHTML = `<button type="button" class="optcard" aria-pressed="${!draft.city}" data-city=""><span class="ico">${I.basket}</span><span><b>Цялата страна</b><small>средни цени на веригите</small></span></button>` +
+        list(q).map(([e, c]) => `<button type="button" class="optcard" aria-pressed="${draft.city === e}" data-city="${e}"><span class="ico" style="font:700 15px var(--display)">${c.name[0]}</span><span><b>${c.t ? c.t + " " : ""}${c.name}</b><small>${Object.entries(c.c).map(([id, x]) => D.chains[id].name + " " + x.n).join(" · ")}</small></span></button>`).join("");
+      $("citylist").querySelectorAll("[data-city]").forEach(x => x.onclick = () => { draft.city = x.dataset.city; if (draft.city && draft.chain !== "auto" && !D.cities[draft.city].c[draft.chain]) draft.chain = "auto"; draw($("cityq").value); });
+    };
+    b.innerHTML = `<input id="cityq" type="search" placeholder="Търси град, напр. Варна" aria-label="Търси град" style="width:100%;font:600 16px var(--body);padding:14px 16px;border-radius:14px;border:2px solid var(--line);background:var(--card);margin-bottom:12px"><div class="optlist" id="citylist"></div>`;
+    draw(""); $("cityq").oninput = e => draw(e.target.value.trim());
+  } else if (S.kind === "stores") {
+    const city = draft.city && D.cities[draft.city], ids = Object.keys(D.chains).filter(id => !city || city.c[id]);
+    b.innerHTML = `<div class="storegrid"><button type="button" class="store wide" aria-pressed="${draft.chain === "auto"}" data-c="auto"><b>Където е най-евтино</b><small>сравняваме ${ids.length} ${ids.length === 1 ? "верига" : "вериги"}${city ? " в " + city.name : ""}</small></button>` +
+      ids.map(id => `<button type="button" class="store" aria-pressed="${draft.chain === id}" data-c="${id}"><b>${D.chains[id].name}</b><small>${city ? city.c[id].n : D.chains[id].stores} ${(city ? city.c[id].n : D.chains[id].stores) === 1 ? "обект" : "обекта"}${city ? " в града" : ""}</small></button>`).join("") + `</div>`;
+    b.querySelectorAll("[data-c]").forEach(x => x.onclick = () => { draft.chain = x.dataset.c; drawOb(); setTimeout(() => { wi++; drawOb(); }, 220); });
+  } else if (S.kind === "budget") {
+    const nb = draft.meals.includes("breakfast") ? 1 : 0, nm = draft.meals.length - nb;
+    const est = d => draft.people * d * (nb * 0.9 + nm * 1.8);
+    if (!draft._bt) draft.budget = Math.min(300, Math.max(10, Math.ceil(est(draft.nights) * 1.1 / 5) * 5));
+    b.innerHTML = `<div class="bignum"><b class="tnum" id="bv">${draft.budget}<sup>€</sup></b><span>за ${draft.nights} ${draft.nights === 1 ? "ден" : "дни"}</span></div>
+      <input type="range" id="bslider" min="10" max="300" step="5" value="${draft.budget}" aria-label="Бюджет"><div class="rangelbl"><span>10 €</span><span>300 €</span></div>
+      <div class="card" style="margin-top:16px"><div class="kv"><span>Дни</span><div class="stepper"><button type="button" id="dm" aria-label="По-малко">−</button><b>${draft.nights}</b><button type="button" id="dp" aria-label="Повече">+</button></div></div>
+      <p class="minor" style="margin:8px 0 0">Ориентир от реалните цени: около ${Math.round(est(draft.nights) * 0.85)}–${Math.round(est(draft.nights) * 1.2)} € за ${draft.people} ${draft.people === 1 ? "човек" : "души"}.</p></div>`;
+    $("bslider").oninput = e => { draft._bt = true; draft.budget = +e.target.value; $("bv").innerHTML = `${draft.budget}<sup>€</sup>`; };
+    $("dm").onclick = () => { draft.nights = Math.max(1, draft.nights - 1); drawOb(); };
+    $("dp").onclick = () => { draft.nights = Math.min(7, draft.nights + 1); drawOb(); };
+  }
+}
+$("obnext").onclick = () => { if (wi < OB.length - 1) { wi++; drawOb(); $("obbody").closest(".scroll").scrollTop = 0; } else closeWizard(true); };
+$("obback").onclick = () => { if (wi) { wi--; drawOb(); } else closeWizard(!loadProfile()); };
+document.addEventListener("keydown", e => {
+  if (!$("cook").hidden) { if (e.key === "ArrowRight") cookGo(1); if (e.key === "ArrowLeft") cookGo(-1); if (e.key === "Escape") closeCook(); return; }
+  if (e.key !== "Escape") return;
+  if (!$("rec").hidden) closeRecipe(); else if (!$("ob").hidden) closeWizard(false);
+});
+
+generate();
+if (!loadProfile()) openWizard();
